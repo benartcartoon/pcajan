@@ -5,11 +5,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-AGENT_VERSION = "0.1.0"
+AGENT_VERSION = "0.2.0"
 POLL_SECONDS = 10
-
-# Google Drive Desktop/rclone ile bu klasoru yerel bilgisayara baglayacagiz.
-# Ortam degiskeni verilirse onu kullanir; aksi halde varsayilan klasor.
 AGENT_ROOT = Path(os.environ.get("AI_AGENT_ROOT", str(Path.home() / "AI-Agent")))
 JOBS_DIR = AGENT_ROOT / "jobs"
 RESULTS_DIR = AGENT_ROOT / "results"
@@ -36,9 +33,19 @@ def write_result(job_id, payload):
     temp.replace(target)
 
 
-def launch_url(url):
-    # Windows'ta varsayilan tarayicida acilir. Sonraki surumde Colab otomasyonu eklenecek.
+def launch_colab(url):
+    # Chrome'u ac, Colab sayfasini bekle, sonra Colab'in Run all kisayolunu gonder.
+    # pyautogui yalnizca klavye tusunu yollar; sifre veya Google kimlik bilgisi okumaz.
     os.startfile(url)
+    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "12"))
+    log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor...")
+    time.sleep(wait_seconds)
+    try:
+        import pyautogui
+    except ImportError as exc:
+        raise RuntimeError("pyautogui kurulu degil. Repo klasorunde install.bat calistir.") from exc
+    pyautogui.hotkey("ctrl", "f9")
+    log("Colab Run all (Ctrl+F9) gonderildi")
 
 
 def handle_job(path):
@@ -52,12 +59,8 @@ def handle_job(path):
 
     log(f"Gorev alindi: {job_id} | project={project} | action={action}")
     write_result(job_id, {
-        "job_id": job_id,
-        "status": "RUNNING",
-        "project": project,
-        "repo": repo,
-        "runner": runner,
-        "action": action,
+        "job_id": job_id, "status": "RUNNING", "project": project,
+        "repo": repo, "runner": runner, "action": action,
         "agent_version": AGENT_VERSION,
         "started_at": datetime.now().isoformat(timespec="seconds")
     })
@@ -66,7 +69,7 @@ def handle_job(path):
         if runner == "colab":
             if not target_url:
                 raise ValueError("Colab gorevi icin target_url eksik")
-            launch_url(target_url)
+            launch_colab(target_url)
         elif runner == "command":
             command = job.get("command")
             if not command:
@@ -76,12 +79,8 @@ def handle_job(path):
             raise ValueError(f"Desteklenmeyen runner: {runner}")
 
         write_result(job_id, {
-            "job_id": job_id,
-            "status": "LAUNCHED",
-            "project": project,
-            "repo": repo,
-            "runner": runner,
-            "action": action,
+            "job_id": job_id, "status": "LAUNCHED", "project": project,
+            "repo": repo, "runner": runner, "action": action,
             "agent_version": AGENT_VERSION,
             "launched_at": datetime.now().isoformat(timespec="seconds")
         })
@@ -89,9 +88,7 @@ def handle_job(path):
         log(f"Gorev baslatildi: {job_id}")
     except Exception as exc:
         write_result(job_id, {
-            "job_id": job_id,
-            "status": "ERROR",
-            "error": str(exc),
+            "job_id": job_id, "status": "ERROR", "error": str(exc),
             "agent_version": AGENT_VERSION,
             "failed_at": datetime.now().isoformat(timespec="seconds")
         })
