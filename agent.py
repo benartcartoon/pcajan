@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-AGENT_VERSION = "0.2.0"
+AGENT_VERSION = "0.3.0"
 POLL_SECONDS = 10
 AGENT_ROOT = Path(os.environ.get("AI_AGENT_ROOT", str(Path.home() / "AI-Agent")))
 JOBS_DIR = AGENT_ROOT / "jobs"
@@ -33,23 +33,37 @@ def write_result(job_id, payload):
     temp.replace(target)
 
 
+def click_run_all():
+    import pyautogui
+
+    # Colab'in ust arac cubugundaki "Tumunu calistir" dugmesini ekranda
+    # metin/goruntu aramak yerine pencere boyutuna gore tiklar. Kullanici
+    # ekraninda dugme sol ustte, notebook arac cubugunda sabit konumdadir.
+    width, height = pyautogui.size()
+    x = max(220, min(310, int(width * 0.195)))
+    y = max(135, min(175, int(height * 0.195)))
+    pyautogui.click(x, y)
+    log(f"Colab Tumunu calistir tiklandi: x={x}, y={y}")
+    time.sleep(2)
+    # Bazi Colab surumleri onay penceresi gosterebilir. Enter varsayilan
+    # onayi kabul eder; pencere yoksa notebook'a zarar vermez.
+    pyautogui.press("enter")
+
+
 def launch_colab(url):
-    # Chrome'u ac, Colab sayfasini bekle, sonra Colab'in Run all kisayolunu gonder.
-    # pyautogui yalnizca klavye tusunu yollar; sifre veya Google kimlik bilgisi okumaz.
     os.startfile(url)
-    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "12"))
+    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "15"))
     log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor...")
     time.sleep(wait_seconds)
     try:
         import pyautogui
     except ImportError as exc:
         raise RuntimeError("pyautogui kurulu degil. Repo klasorunde install.bat calistir.") from exc
-    pyautogui.hotkey("ctrl", "f9")
-    log("Colab Run all (Ctrl+F9) gonderildi")
+    click_run_all()
 
 
 def handle_job(path):
-    job = json.loads(path.read_text(encoding="utf-8"))
+    job = json.loads(path.read_text(encoding="utf-8-sig"))
     job_id = str(job.get("job_id") or path.stem)
     project = job.get("project", "unknown")
     repo = job.get("repo", "")
