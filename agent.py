@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-AGENT_VERSION = "0.5.0"
+AGENT_VERSION = "0.6.0"
 POLL_SECONDS = 10
 AGENT_ROOT = Path(os.environ.get("AI_AGENT_ROOT", str(Path.home() / "AI-Agent")))
 JOBS_DIR = AGENT_ROOT / "jobs"
@@ -85,12 +85,16 @@ def write_result(job_id, payload):
     rclone("copyto", str(target), f"{REMOTE_RESULTS}/{job_id}.json")
 
 
-def activate_chrome():
+def find_colab_window():
     import pygetwindow as gw
-    windows = [w for w in gw.getAllWindows() if w.title and ("Colab" in w.title or "Chrome" in w.title)]
-    if not windows:
-        raise RuntimeError("Chrome/Colab penceresi bulunamadi")
-    win = windows[-1]
+    windows = [w for w in gw.getAllWindows() if w.title and ("Colab" in w.title or "Google Colaboratory" in w.title)]
+    return windows[-1] if windows else None
+
+
+def activate_colab():
+    win = find_colab_window()
+    if not win:
+        raise RuntimeError("Acik bir Colab penceresi bulunamadi")
     if win.isMinimized:
         win.restore()
     win.activate()
@@ -99,12 +103,37 @@ def activate_chrome():
         win.maximize()
     except Exception:
         pass
+    return win
+
+
+def open_colab(url):
+    os.startfile(url)
+    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "18"))
+    log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor...")
+    time.sleep(wait_seconds)
+    log("Colab acildi")
+
+
+def close_colab():
+    win = find_colab_window()
+    if not win:
+        log("Kapatilacak acik Colab penceresi bulunamadi")
+        return
+    if win.isMinimized:
+        win.restore()
+    win.activate()
     time.sleep(1)
+    try:
+        win.close()
+    except Exception:
+        import pyautogui
+        pyautogui.hotkey("ctrl", "w")
+    log("Colab penceresi kapatildi")
 
 
 def run_all_colab():
     import pyautogui
-    activate_chrome()
+    activate_colab()
     width, height = pyautogui.size()
     pyautogui.click(int(width * 0.55), int(height * 0.45))
     time.sleep(1)
@@ -114,16 +143,6 @@ def run_all_colab():
     pyautogui.press("enter")
 
 
-def launch_colab(url):
-    os.startfile(url)
-    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "18"))
-    log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor...")
-    time.sleep(wait_seconds)
-    import pyautogui  # noqa: F401
-    import pygetwindow  # noqa: F401
-    run_all_colab()
-
-
 def handle_job(path, processed):
     job = json.loads(path.read_text(encoding="utf-8-sig"))
     job_id = str(job.get("job_id") or path.stem)
@@ -131,30 +150,37 @@ def handle_job(path, processed):
         path.unlink(missing_ok=True)
         return
     project = job.get("project", "unknown")
-    repo = job.get("repo", "")
-    runner = job.get("runner", "colab")
-    action = job.get("action", "test")
+    action = str(job.get("action", "test")).lower()
     target_url = job.get("target_url")
     log(f"Gorev alindi: {job_id} | project={project} | action={action}")
-    write_result(job_id, {"job_id": job_id, "status": "RUNNING", "project": project, "repo": repo, "runner": runner, "action": action, "agent_version": AGENT_VERSION, "started_at": datetime.now().isoformat(timespec="seconds")})
+    write_result(job_id, {"job_id": job_id, "status": "RUNNING", "project": project, "action": action, "agent_version": AGENT_VERSION, "started_at": datetime.now().isoformat(timespec="seconds")})
     try:
-        if runner == "colab":
+        if action in {"open_colab", "colab_open", "open"}:
+            if not target_url:
+                raise ValueError("Colab acma gorevi icin target_url eksik")
+            open_colab(target_url)
+        elif action in {"close_colab", "colab_close", "close"}:
+            close_colab()
+        elif action in {"run", "run_all", "test"}:
             if not target_url:
                 raise ValueError("Colab gorevi icin target_url eksik")
-            launch_colab(target_url)
-        elif runner == "command":
+            open_colab(target_url)
+            time.sleep(2)
+            run_all_colab()
+        elif action == "command":
             command = job.get("command")
             if not command:
-                raise ValueError("command runner icin command eksik")
+                raise ValueError("command eksik")
             subprocess.Popen(command, shell=True)
         else:
-            raise ValueError(f"Desteklenmeyen runner: {runner}")
-        write_result(job_id, {"job_id": job_id, "status": "LAUNCHED", "project": project, "repo": repo, "runner": runner, "action": action, "agent_version": AGENT_VERSION, "launched_at": datetime.now().isoformat(timespec="seconds")})
+            raise ValueError(f"Desteklenmeyen action: {action}")
+
+        write_result(job_id, {"job_id": job_id, "status": "DONE", "project": project, "action": action, "agent_version": AGENT_VERSION, "finished_at": datetime.now().isoformat(timespec="seconds")})
         processed.add(job_id)
         save_processed(processed)
         archive_remote(path.name)
         path.rename(path.with_suffix(".done"))
-        log(f"Gorev baslatildi: {job_id}")
+        log(f"Gorev tamamlandi: {job_id}")
     except Exception as exc:
         write_result(job_id, {"job_id": job_id, "status": "ERROR", "error": str(exc), "agent_version": AGENT_VERSION, "failed_at": datetime.now().isoformat(timespec="seconds")})
         processed.add(job_id)
@@ -167,7 +193,7 @@ def handle_job(path, processed):
 def main():
     ensure_dirs()
     processed = load_processed()
-    for old in ("TEST001", "TEST002", "TEST003", "TEST004"):
+    for old in ("TEST001", "TEST002", "TEST003", "TEST004", "TEST005"):
         processed.add(old)
     save_processed(processed)
     log(f"PC AJAN basladi v{AGENT_VERSION}")
