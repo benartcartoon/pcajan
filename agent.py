@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-AGENT_VERSION = "0.3.0"
+AGENT_VERSION = "0.4.0"
 POLL_SECONDS = 10
 AGENT_ROOT = Path(os.environ.get("AI_AGENT_ROOT", str(Path.home() / "AI-Agent")))
 JOBS_DIR = AGENT_ROOT / "jobs"
@@ -33,33 +33,57 @@ def write_result(job_id, payload):
     temp.replace(target)
 
 
-def click_run_all():
-    import pyautogui
+def activate_chrome():
+    import pygetwindow as gw
+    windows = [w for w in gw.getAllWindows() if w.title and ("Colab" in w.title or "Chrome" in w.title)]
+    if not windows:
+        raise RuntimeError("Chrome/Colab penceresi bulunamadi")
+    win = windows[-1]
+    try:
+        if win.isMinimized:
+            win.restore()
+        win.activate()
+        time.sleep(2)
+        try:
+            win.maximize()
+        except Exception:
+            pass
+        time.sleep(1)
+    except Exception as exc:
+        raise RuntimeError(f"Chrome penceresi odaklanamadi: {exc}") from exc
+    return win
 
-    # Colab'in ust arac cubugundaki "Tumunu calistir" dugmesini ekranda
-    # metin/goruntu aramak yerine pencere boyutuna gore tiklar. Kullanici
-    # ekraninda dugme sol ustte, notebook arac cubugunda sabit konumdadir.
+
+def run_all_colab():
+    import pyautogui
+    activate_chrome()
+
+    # Once notebook alanina tiklayip Colab'a klavye odagi ver.
     width, height = pyautogui.size()
-    x = max(220, min(310, int(width * 0.195)))
-    y = max(135, min(175, int(height * 0.195)))
-    pyautogui.click(x, y)
-    log(f"Colab Tumunu calistir tiklandi: x={x}, y={y}")
-    time.sleep(2)
-    # Bazi Colab surumleri onay penceresi gosterebilir. Enter varsayilan
-    # onayi kabul eder; pencere yoksa notebook'a zarar vermez.
+    pyautogui.click(int(width * 0.55), int(height * 0.45))
+    time.sleep(1)
+
+    # Colab'in resmi Run all kisayolu. Onceki surumde sorun tarayici odagiydi;
+    # v0.4 Chrome'u acikca one getirip notebook'a odak verdikten sonra yollar.
+    pyautogui.hotkey("ctrl", "f9")
+    log("Colab odaklandi ve Run all (Ctrl+F9) gonderildi")
+    time.sleep(3)
+
+    # Olası guven/onay penceresinde varsayilan secimi kabul et.
     pyautogui.press("enter")
 
 
 def launch_colab(url):
     os.startfile(url)
-    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "15"))
+    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "18"))
     log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor...")
     time.sleep(wait_seconds)
     try:
-        import pyautogui
+        import pyautogui  # noqa: F401
+        import pygetwindow  # noqa: F401
     except ImportError as exc:
-        raise RuntimeError("pyautogui kurulu degil. Repo klasorunde install.bat calistir.") from exc
-    click_run_all()
+        raise RuntimeError("pyautogui/pygetwindow kurulu degil. install.bat calistir.") from exc
+    run_all_colab()
 
 
 def handle_job(path):
