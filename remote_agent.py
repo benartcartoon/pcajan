@@ -1,8 +1,7 @@
-"""Restricted remote Colab controller. Requires GitHub CLI (`gh auth login`).
-Uses private benartcartoon/kontrol issues. Never executes arbitrary commands.
-"""
+"""Restricted GitHub-issue Colab controller; never executes arbitrary commands."""
 import json
 import os
+import shutil
 import subprocess
 import time
 import webbrowser
@@ -12,10 +11,11 @@ REPO = 'benartcartoon/kontrol'
 STATE = Path.home() / 'AI-Agent' / 'github_issue_state.json'
 COLAB = 'https://colab.research.google.com/drive/1A6EpaD0g5W9_ammkd6QqxyKF5LCz2Bc9'
 ACTIONS = {'COLAB_OPEN', 'COLAB_CLOSE'}
+GH = shutil.which('gh') or str(Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'GitHub CLI' / 'gh.exe')
 
 
 def gh(*args):
-    result = subprocess.run(['gh', *args], capture_output=True, text=True, timeout=35)
+    result = subprocess.run([GH, *args], capture_output=True, text=True, timeout=35)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or 'GitHub CLI failed')
     return result.stdout
@@ -35,14 +35,11 @@ def open_colab():
 
 
 def close_colab():
-    # Safe failure: never send keystrokes to an unverified browser tab.
-    # Runtime deletion requires browser integration and explicit verification.
     raise RuntimeError('Safe close unavailable: Colab tab/runtime cannot be verified. No keys sent.')
 
 
 def main():
     STATE.parent.mkdir(parents=True, exist_ok=True)
-    # On first run, do not execute existing issues created before installation.
     if not STATE.exists():
         current = json.loads(gh('api', f'repos/{REPO}/issues?state=open&per_page=100'))
         STATE.write_text(json.dumps([x['number'] for x in current if 'pull_request' not in x]), encoding='utf-8')
