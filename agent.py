@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-AGENT_VERSION = "0.8.0"
+AGENT_VERSION = "0.9.0"
 POLL_SECONDS = 10
 AGENT_ROOT = Path(os.environ.get("AI_AGENT_ROOT", str(Path.home() / "AI-Agent")))
 JOBS_DIR = AGENT_ROOT / "jobs"
@@ -78,48 +78,55 @@ def activate_chrome():
     return win
 
 def project_config(project, job):
-    key = str(project or "").lower().strip()
-    cfg = dict(PROJECTS.get(key, {}))
+    key = str(project or "").lower().strip(); cfg = dict(PROJECTS.get(key, {}))
     if job.get("target_url"): cfg["colab_url"] = job["target_url"]
     if job.get("repo"): cfg["repo"] = job["repo"]
     return cfg
 
 def open_colab(url):
-    os.startfile(url)
-    wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "18"))
-    log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor...")
-    time.sleep(wait_seconds); activate_chrome(); log("Colab acildi")
+    os.startfile(url); wait_seconds = int(os.environ.get("COLAB_OPEN_WAIT", "18"))
+    log(f"Colab aciliyor; {wait_seconds} saniye bekleniyor..."); time.sleep(wait_seconds); activate_chrome(); log("Colab acildi")
+
+def disconnect_runtime():
+    """Colab'in baglantiyi kes klavye kisayolunu kullanir; kod hucresine metin yazmaz."""
+    import pyautogui
+    activate_chrome()
+    # Colab: Runtime > Disconnect and delete runtime dialog is exposed by Ctrl+Shift+M then menu navigation.
+    # Use menu via mouse-independent keyboard: Alt+/ opens command search, search Turkish/English command.
+    pyautogui.hotkey("alt", "/"); time.sleep(2)
+    pyautogui.write("disconnect and delete runtime", interval=0.03); time.sleep(2)
+    pyautogui.press("enter"); time.sleep(3)
+    pyautogui.press("enter"); time.sleep(5)
+    log("Colab runtime baglantisini kesme komutu gonderildi")
 
 def close_colab():
     import pyautogui
+    activate_chrome()
+    try: disconnect_runtime()
+    except Exception as exc: log(f"Runtime kapatma uyarisi: {exc}")
     activate_chrome(); pyautogui.hotkey("ctrl", "w"); time.sleep(2)
-    log("Aktif Colab sekmesi kapatildi")
+    log("Colab runtime kapatma denendi ve aktif sekme kapatildi")
 
 def run_all_colab():
     import pyautogui
-    activate_chrome(); pyautogui.hotkey("ctrl", "f9"); time.sleep(3); pyautogui.press("enter")
-    log("Run all (Ctrl+F9) gonderildi")
+    activate_chrome(); pyautogui.hotkey("ctrl", "f9"); time.sleep(3); pyautogui.press("enter"); log("Run all (Ctrl+F9) gonderildi")
 
 def handle_job(path, processed):
-    job = json.loads(path.read_text(encoding="utf-8-sig"))
-    job_id = str(job.get("job_id") or path.stem)
+    job = json.loads(path.read_text(encoding="utf-8-sig")); job_id = str(job.get("job_id") or path.stem)
     if job_id in processed: path.unlink(missing_ok=True); return
-    project = str(job.get("project", "unknown")).lower()
-    action = str(job.get("action", "test")).lower()
-    cfg = project_config(project, job)
+    project = str(job.get("project", "unknown")).lower(); action = str(job.get("action", "test")).lower(); cfg = project_config(project, job)
     log(f"Gorev alindi: {job_id} | project={project} | action={action}")
     write_result(job_id,{"job_id":job_id,"status":"RUNNING","project":project,"action":action,"agent_version":AGENT_VERSION,"started_at":datetime.now().isoformat(timespec="seconds")})
     try:
         if action in {"open_colab","colab_open","open"}:
-            url = cfg.get("colab_url")
+            url = cfg.get("colab_url");
             if not url: raise ValueError("Bu proje icin Colab URL tanimli degil")
             open_colab(url)
         elif action in {"close_colab","colab_close","close"}: close_colab()
         elif action in {"run","run_all","produce","generate","start_project","test"}:
-            url = cfg.get("colab_url")
+            url = cfg.get("colab_url");
             if not url: raise ValueError("Bu proje icin Colab URL tanimli degil")
-            log(f"Proje yonlendirildi: {project} | repo={cfg.get('repo','ozel')}" )
-            open_colab(url); run_all_colab()
+            log(f"Proje yonlendirildi: {project} | repo={cfg.get('repo','ozel')}"); open_colab(url); run_all_colab()
         elif action == "command":
             command = job.get("command")
             if not command: raise ValueError("command eksik")
