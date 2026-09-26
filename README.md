@@ -7,6 +7,6 @@ pcajan, kullanıcı tarafından verilen görevleri otomatik olarak yerine getire
 Ajanın temel prensipleri:
 - Mevcut dosyaları okumadan değiştirme
 - Kod değişikliklerini depoda yap, kontrolleri çalıştır
-- Başarısızliği başarılı olarak raporlama
+- Başarısızlığı başarılı olarak raporlama
 - Değişiklikleri kendi dalına commit/push, PR açıp bağlantıyı bildir
 - Ana dala doğrudan push etme; PR birleştirmeyi kullanıcı onayına bırak
