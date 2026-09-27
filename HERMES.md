@@ -10,6 +10,8 @@ Bu depo otomasyon ajanının kodları içindir. Kullanıcı görevleri önce bil
 5. Raporunda değişen dosyalar, test sonucu, kalan sorunlar ve PR bağlantısı bulunsun.
 6. Ana dala doğrudan push etme; PR birleştirmeyi kullanıcı onayına bırak.
 
+**Kullanıcı belirli bir PR numarası vererek açıkça "PR #... birleştir" demedikçe hiçbir PR'ı birleştirme. "PR oluştur, birleştirme" görevinde PR açıldıktan sonra dur ve GitHub'dan doğruladığın açık durumunu raporla.**
+
 ## Sınırlar
 - GitHub kimlik bilgilerini, API anahtarlarını, Telegram tokenlarını, Drive erişim bilgilerini ve yerel sırları kodda veya loglarda tutma.
 - Büyük modelleri, videoları ve geçici dosyaları GitHub'a yükleme; Drive'da sakla.
