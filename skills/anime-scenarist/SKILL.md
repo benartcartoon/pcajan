@@ -114,6 +114,26 @@ Araştırma yaptıysan hangi güncel kaynakları kullandığını kısa şekilde
 
 Kullanıcı hedef yaş, dil, görsel stil, üretim modeli, karakter sınırı veya başka koşul verirse o çalıştırmada uygula; ancak 40 × 15 saniye ana formatını koru, kullanıcı açıkça başka süre istemedikçe.
 
+## Otomatik senaryo kaydı
+
+Her başarılı anime senaryosu üretiminden sonra sonucu yalnızca sohbet ekranında bırakma; tamamını Google Drive for Desktop üzerindeki şu klasöre gerçek UTF-8 Markdown dosyası olarak kaydet:
+
+- Ana klasör: `E:\\Drive'ım\\MiniMax-H3\\Sahne Anime\\Senaryolar`
+- Drive klasör ID: `1KfeU6FKtWJHJUrDAQdOJIrSfRw91Ibfs`
+
+Klasör yoksa oluştur. Her üretim için **ayrı bir dosya** kullan; önceki senaryoyu üzerine yazma veya silme.
+
+Dosya adı düzeni:
+`YYYY-MM-DD_HHMM_<özgün-anime-adı>.md`
+
+Dosya adındaki geçersiz Windows karakterlerini temizle. Aynı ad mevcutsa sonuna `_02`, `_03` şeklinde sıra numarası ekle.
+
+Kaydedilen dosyanın içinde, kullanıcıya üretilen **tam sonuç** bulunmalıdır: araştırma notları/kaynak özeti, proje kimliği, karakterlerin tüm ayrıntıları ve Sahne 01'den Sahne 40'a kadar eksiksiz senaryo. Sohbette gösterilen uzun metnin yalnızca özetini kaydetme.
+
+Kaydı senaryo üretiminin zorunlu son adımı kabul et. Yazma işleminden sonra dosyayı tekrar açarak varlığını ve içeriğinin boş olmadığını doğrula. Son kullanıcı mesajının sonunda kısa biçimde `Drive'a kaydedildi: <tam dosya yolu>` yaz.
+
+Bu klasördeki senaryo dosyaları daha sonra ChatGPT veya başka bir ajan tarafından Google Drive üzerinden bulunup okunabilmelidir. Kullanıcı `bir daha dene` dediğinde yeni senaryoyu yeni bir dosyaya kaydet; eski dosyaları koru.
+
 ## Çalışma ilkesi
 
 Bu skill bir senarist ajan protokolüdür. Kullanıcı tetikleyici ifadeyi kullandığında görevi doğrudan başlat. Gereksiz açıklama veya tekrar onayı isteme.
